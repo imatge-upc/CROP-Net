@@ -1,0 +1,30 @@
+[
+ {
+  "id": "tree02",
+  "tree": 2,
+  "apples": 117,
+  "points": 300000,
+  "predictions": true
+ },
+ {
+  "id": "tree04",
+  "tree": 4,
+  "apples": 165,
+  "points": 300000,
+  "predictions": true
+ },
+ {
+  "id": "tree08",
+  "tree": 8,
+  "apples": 185,
+  "points": 300000,
+  "predictions": true
+ },
+ {
+  "id": "tree10",
+  "tree": 10,
+  "apples": 194,
+  "points": 300000,
+  "predictions": true
+ }
+]

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CROP-Net</title>
+<meta name="description" content="CROP-Net: cuboid-based 3D apple detection in photogrammetric point clouds of orchards.">
+<link rel="stylesheet" href="assets/style.css?v=2">
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header class="hero">
+  <h1>CROP-Net</h1>
+  <p class="subtitle">Cuboid-based Recognition on Orchard Point-clouds for 3D Apple Detection</p>
+  <p class="authors">
+    <span>Pablo Vega-Gallego<sup>1</sup></span>
+    <span>Jordi Gené-Mola<sup>2</sup></span>
+    <span>Eduard Gregorio-López<sup>3</sup></span>
+    <span>Javier Ruiz-Hidalgo<sup>1</sup></span>
+  </p>
+  <p class="affil">
+    <span><sup>1</sup>Universitat Politècnica de Catalunya</span>
+    <span><sup>2</sup>IRTA</span>
+    <span><sup>3</sup>Universitat de Lleida – Agrotecnio-CERCA</span>
+  </p>
+  <nav class="links">
+    <a class="disabled" aria-disabled="true">Paper (soon)</a>
+    <a class="disabled" aria-disabled="true">Code (soon)</a>
+    <a href="https://doi.org/10.1016/j.dib.2020.105591">Fuji-SfM dataset</a>
+    <a href="#bibtex">BibTeX</a>
+  </nav>
+</header>
+
+<main>
+  <section class="viewer-section" aria-label="Interactive 3D results">
+    <div class="tree-tabs" id="tree-tabs" role="tablist" aria-label="Tree"></div>
+    <div id="viewer">
+      <div id="stage">
+        <div id="loading">Loading point cloud…</div>
+        <div class="hint">Drag to rotate · scroll to zoom · right-drag to pan</div>
+      </div>
+      <div class="panel" id="panel">
+        <label><input type="checkbox" id="show-gt" checked><span class="key gt"></span>Ground truth</label>
+        <label id="pred-row"><input type="checkbox" id="show-pred" checked><span class="key pred"></span>Predictions</label>
+        <label><input type="checkbox" id="show-cuboids"><span class="key cuboid"></span>Cuboids</label>
+        <div class="slider-row" id="score-row">
+          <div class="slider-head"><span>Confidence ≥ <b id="score-value">0.43</b></span>
+            <button class="link" id="score-reset" title="Operating point chosen on the validation trees">reset</button></div>
+          <input type="range" id="score" min="0.43" max="0.95" step="0.01" value="0.43" aria-label="Confidence threshold">
+        </div>
+        <div class="slider-row">
+          <div class="slider-head"><span>Point size</span></div>
+          <input type="range" id="point-size" min="1" max="10" value="4" aria-label="Point size">
+        </div>
+        <button id="reset-view">Reset view</button>
+      </div>
+    </div>
+    <p class="caption" id="viewer-caption">Fuji-SfM trees reconstructed with structure-from-motion, with their annotated apples.</p>
+  </section>
+
+  <section class="tldr" aria-label="Highlights">
+    <div class="tile"><div class="tile-value">87.39%</div><div class="tile-label">F1@0.25 on Fuji-SfM, tree level, 11-fold nested cross-validation</div></div>
+    <div class="tile"><div class="tile-value">+4.44</div><div class="tile-label">AP@0.25 points from the MultiHeadFusionBlock over the element-wise sum of TR3D</div></div>
+    <div class="tile"><div class="tile-value">1 GPU</div><div class="tile-label">whole trees at 1 mm voxels on a single 24 GB GPU, thanks to cuboid partitioning</div></div>
+  </section>
+
+  <section>
+    <h2>Abstract</h2>
+    <p>Automated harvesting and yield estimation rely on accurate fruit detection. 2D imagery
+    lacks the depth needed to resolve heavy foliage occlusions, while current point-based and
+    projection methods struggle to scale to dense point-cloud reconstructions. We present
+    <b>CROP-Net</b>, an apple detection pipeline for colored point clouds from structure-from-motion
+    photogrammetry. A cuboid-based partitioning strategy handles large orchard scenes while
+    preserving local point density, and a <b>MultiHeadFusionBlock</b> replaces the static feature
+    aggregation of sparse voxel networks to refine the information flow across scales. On
+    Fuji-SfM, CROP-Net reaches an F1-score of 87.39% at IoU 0.25, 2.18 points above the strongest
+    sparse-voxel baseline evaluated under the same pipeline; the MultiHeadFusionBlock alone raises
+    AP@0.25 by 4.44 points over the summation it replaces.</p>
+  </section>
+
+  <section>
+    <h2>Method</h2>
+    <ol class="pipeline" id="pipeline">
+      <li><span class="step">1</span><h3>Photogrammetric tree</h3>
+        <p>Colored point cloud of a whole tree, reconstructed with structure-from-motion
+        (about 0.7 million points per tree).</p></li>
+      <li><span class="step">2</span><h3>Cuboid partitioning</h3>
+        <p>0.5 m cuboids with a 0.1 m overlap, voxelized at 1 mm. An apple cut by a cuboid
+        border keeps its full shape in the neighbouring cuboid.</p>
+        <button class="link" data-show="cuboids">Show the cuboids</button></li>
+      <li><span class="step">3</span><h3>CROP-Net</h3>
+        <p>A sparse-voxel detector built on TR3D, with the MultiHeadFusionBlock in its neck,
+        predicts boxes in every cuboid.</p></li>
+      <li><span class="step">4</span><h3>Global 3D NMS</h3>
+        <p>The boxes of all cuboids are merged in the tree's coordinates; the duplicates of
+        the overlaps are removed at the operating point chosen on validation trees.</p>
+        <button class="link" data-show="predictions">Show the detections</button></li>
+    </ol>
+
+    <h3 class="sub">Architecture</h3>
+    <p class="lead">Hover over a block to see what it does, and click it to look inside.</p>
+    <div class="arch">
+      <aside class="arch-info" id="arch-info" aria-live="polite"></aside>
+      <div class="arch-figure" id="arch"></div>
+      <p class="scroll-hint">Scroll sideways to see the whole diagram.</p>
+    </div>
+    <div class="inside" id="inside" hidden>
+      <div class="inside-head">
+        <div>
+          <h3 class="sub" id="inside-title"></h3>
+          <p class="inside-sub" id="inside-sub"></p>
+        </div>
+        <div class="inside-tools">
+          <div class="segmented" id="heads-picker" role="radiogroup" aria-label="Number of heads H" hidden></div>
+          <button type="button" class="close" id="inside-close" aria-label="Close the inside view">×</button>
+        </div>
+      </div>
+      <div id="inside-figure"></div>
+      <p class="scroll-hint">Scroll sideways to see the whole block.</p>
+      <p class="inside-legend">Rectangles are learned layers, parallelograms tensors and circles element-wise
+      operations. All convolutions are sparse; 3<sup>3</sup> and 1<sup>3</sup> are kernel sizes, ↓2 and ↑2 strides.
+      N is the number of active voxels, N′ that number after a strided layer.</p>
+      <p class="inside-text" id="inside-text"></p>
+      <p class="inside-code" id="inside-code"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Results</h2>
+    <p class="lead">Tree-level metrics on Fuji-SfM, mean ± standard deviation over the 11 test trees of
+    the nested cross-validation. Every model is trained and evaluated under the same pipeline.</p>
+    <div class="table-wrap">
+      <table class="results">
+        <thead><tr><th>Method</th><th>AP@0.25</th><th>AR@0.25</th><th>F1@0.25</th></tr></thead>
+        <tbody>
+          <tr><td>VoteNet</td><td>51.60<span class="sd"> ± 4.60</span></td><td>55.43<span class="sd"> ± 7.27</span></td><td>52.45<span class="sd"> ± 2.87</span></td></tr>
+          <tr><td>FCAF3D</td><td>81.89<span class="sd"> ± 3.64</span></td><td>88.39<span class="sd"> ± 2.44</span></td><td>84.23<span class="sd"> ± 3.40</span></td></tr>
+          <tr><td>TR3D</td><td>83.67<span class="sd"> ± 3.58</span></td><td>90.75<span class="sd"> ± 3.99</span></td><td>85.21<span class="sd"> ± 2.49</span></td></tr>
+          <tr class="ours"><td>CROP-Net</td><td>87.11<span class="sd"> ± 5.74</span></td><td>93.56<span class="sd"> ± 4.20</span></td><td>87.39<span class="sd"> ± 3.82</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="sub">Ablations</h3>
+    <div class="segmented metric-picker" id="metric-picker" role="radiogroup" aria-label="Metric"></div>
+    <div class="charts">
+      <figure class="chart-card"><figcaption>Feature fusion in the neck</figcaption><div id="chart-fusion"></div></figure>
+      <figure class="chart-card"><figcaption>Number of heads H</figcaption><div id="chart-heads"></div></figure>
+      <figure class="chart-card wide"><figcaption>Cuboid size and voxel size</figcaption><div id="chart-spatial"></div></figure>
+    </div>
+    <div class="color-ablation">
+      <h3 class="sub">What colour adds</h3>
+      <p class="lead">The same network trained on geometry only (XYZ) against geometry and colour (XYZ + RGB).</p>
+      <div class="tiles">
+        <div class="tile"><div class="tile-value">+20.91</div><div class="tile-label">F1@0.25 points (66.48 → 87.39)</div></div>
+        <div class="tile"><div class="tile-value">+18.75</div><div class="tile-label">AP@0.25 points (68.36 → 87.11)</div></div>
+        <div class="tile"><div class="tile-value">+8.09</div><div class="tile-label">AR@0.25 points (85.47 → 93.56)</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="bibtex">
+    <h2>BibTeX</h2>
+    <div class="bibtex">
+      <button class="copy" id="copy-bibtex">Copy</button>
+      <pre id="bibtex-text">@article{vegagallego2026cropnet,
+  title  = {{CROP-Net}: Cuboid-based Recognition on Orchard Point-clouds for {3D} Apple Detection},
+  author = {Vega-Gallego, Pablo and Gen{\'e}-Mola, Jordi and Gregorio-L{\'o}pez, Eduard and Ruiz-Hidalgo, Javier},
+  year   = {2026}
+}</pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Built on <a href="https://github.com/SamsungLabs/tr3d">TR3D</a>,
+  <a href="https://github.com/open-mmlab/mmdetection3d">MMDetection3D</a> and
+  <a href="https://github.com/NVIDIA/MinkowskiEngine">MinkowskiEngine</a>.
+  Data: <a href="https://doi.org/10.1016/j.dib.2020.105591">Fuji-SfM</a>. The code will be released with the paper.</p>
+</footer>
+
+<script type="module" src="assets/viewer.js?v=2"></script>
+<script type="module" src="assets/architecture.js?v=2"></script>
+<script type="module" src="assets/results.js?v=2"></script>
+<script>
+  document.getElementById('copy-bibtex').addEventListener('click', async (e) => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById('bibtex-text').textContent);
+      e.target.textContent = 'Copied';
+    } catch (err) {
+      e.target.textContent = 'Select and copy';
+    }
+    setTimeout(() => { e.target.textContent = 'Copy'; }, 1600);
+  });
+</script>
+</body>
+</html>
