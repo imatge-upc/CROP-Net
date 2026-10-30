@@ -100,13 +100,14 @@ function dotPlot(container, rows) {
   const width = Math.max(280, container.clientWidth);
   const left = Math.max(...rows.map((r) => textWidth(r.name, r.ours ? 700 : 400))) + 16;
   const right = width - 14, rowH = 40, top = 22;
-  const height = top + rows.length * rowH + 30;
+  const plotBottom = top + rows.length * rowH, height = plotBottom + 50;
   const x = (v) => left + ((v - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0])) * (right - left);
   const svg = el('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img', 'aria-label': `${metricLabel()} by configuration` });
   for (let v = DOMAIN[0]; v <= DOMAIN[1]; v += 10) {
-    el('line', { x1: x(v), x2: x(v), y1: top - 4, y2: height - 26, stroke: 'var(--grid)', 'stroke-width': 1 }, svg);
-    label(svg, x(v), height - 12, String(v), { 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12 });
+    el('line', { x1: x(v), x2: x(v), y1: top - 4, y2: plotBottom + 4, stroke: 'var(--grid)', 'stroke-width': 1 }, svg);
+    label(svg, x(v), plotBottom + 18, String(v), { 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12 });
   }
+  label(svg, (left + right) / 2, plotBottom + 40, `${metricLabel()} (%)`, { 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12 });
   rows.forEach((r, i) => {
     const y = top + i * rowH + rowH / 2;
     const [mean, std] = r[metric];
@@ -131,7 +132,7 @@ function dotPlot(container, rows) {
 // Line chart of the spatial ablation: one series per voxel size over the cuboid size.
 function spatialChart(container) {
   const width = Math.max(280, container.clientWidth), narrow = width < 560;
-  const left = 36, right = width - 10, top = narrow ? 56 : 36, bottom = narrow ? 230 : 250, height = bottom + 52;
+  const left = 56, right = width - 10, top = narrow ? 56 : 36, bottom = narrow ? 230 : 250, height = bottom + 52;
   const pad = narrow ? 24 : 60;
   const x = (i) => left + pad + (i / (SIZES.length - 1)) * (right - left - 2 * pad);
   const y = (v) => bottom - ((v - DOMAIN[0]) / (DOMAIN[1] - DOMAIN[0])) * (bottom - top);
@@ -149,6 +150,8 @@ function spatialChart(container) {
   }
   SIZES.forEach((s, i) => label(svg, x(i), bottom + 20, s, { 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12 }));
   label(svg, (left + right) / 2, bottom + 40, 'Cuboid size', { 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12 });
+  label(svg, 0, 0, `${metricLabel()} (%)`, { 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 12,
+    transform: `translate(14 ${(top + bottom) / 2}) rotate(-90)` });
 
   for (const s of SPATIAL) {
     const pts = s.points.map((p, i) => (p ? [x(i), y(p[metric][0])] : null)).filter(Boolean);
