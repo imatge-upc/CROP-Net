@@ -96,7 +96,7 @@ function buildPoints(meta, buffer) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(rgb, 3, true));
-  pointMaterial = pointMaterial || new THREE.PointsMaterial({ size: 0.004, vertexColors: true });
+  pointMaterial = pointMaterial || new THREE.PointsMaterial({ size: 0.001 * $('point-size').value, vertexColors: true });
   return { object: new THREE.Points(geometry, pointMaterial), positions };
 }
 
